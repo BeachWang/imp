@@ -20,12 +20,11 @@ We also release the model weights a running example of `imp-v1-3b` on [Huggingfa
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Usage](#usage)
+- [Model Zoo](#model-zoo)
 - [Training](#training)
 - [Evaluation](#evaluation)
 - [License](#license)
 - [Citation](#citation)
-<!-- - [Acknowledgement](#acknowledgement) -->
 
 ## Prerequisites
 
@@ -43,7 +42,20 @@ conda activate imp
 pip install -r requirements.txt
 pip install flash-attn==2.4.2 --no-build-isolation
 ```
-3. (Optional) Manually download the pretrained model repositories, i.e., [google/siglip-so400m-patch14-384](https://huggingface.co/google/siglip-so400m-patch14-384) and [microsoft/phi-2](https://huggingface.co/microsoft/phi-2) to your local directories and modify the corresponding paths in the training and evaluation scripts, respectively.
+
+3. Download the pretrained base models (i.e., Phi-2 and SigLIP) to your local directories. **Note that the latest version of the Phi-2 model is not compatible with this repository. We strongly recommend using the following script to download the specific versions of the base models.** 
+``` shell
+python scripts/download_models.py
+```
+The base models will be stored in `checkpoints/base` in default.
+```
+checkpoints
+└── base
+    └── siglip-so400m-patch14-384
+    └── phi-2
+```
+## Model-zoo
+The checkpoints of different Imp models are provided in [Model_Zoo.md](./docs/Model_Zoo.md) .
 
 ## Training
 The training pipeline and datasets of `imp-v1-3b` are directly inherited from [LLaVA-v1.5](https://github.com/haotian-liu/LLaVA). The training  
@@ -63,7 +75,7 @@ Please download the caption annotations `blip_laion_cc_sbu_558k.json` and images
 bash scripts/pretrain.sh
 ```
 
-After that, a checkpoint file of the multimodal projector will be stored in `./checkpoints/imp-v1-3b-pretrain`.
+After that, a checkpoint file will be stored in `./checkpoints/imp-v1-3b-stage1`.
 
 ### Stage-2: Multimodal instruction tuning
 
@@ -94,14 +106,30 @@ datasets
         └── VG_100K_2
 ```
 
-Then, you can start the training process with the following command:
+Then, you can start the training process by the following script. If you use your custom dataset, you can refer to `llava_v1_5_mix665k.json` to format your data.
 
 ``` shell
 bash scripts/finetune_lora.sh
 # bash scripts/finetune.sh # fully finetuning is not recommended
 ```
-You will get a trained model (a LoRA diff if you use `finetune_lora.sh`) under `./checkpoints/` when the training is done.
+You will get a trained model `imp-v1-3b-stage2-lora` (a LoRA diff if you use `finetune_lora.sh`) under `./checkpoints/` when the training is done.
+
+### Submodel merging
+After the above model training, the model checkpoint consists of multiple sub-models. You can use the following script to merge the stage2 sub-models into a single one for release. Our evaluation script supports both the sub-models and merged model checkpoints. **However, if you want to fine-tune the model on your own custom dataset, only the merged model is supported.** 
+
+``` shell
+bash scripts/merge.sh
+```
+After that, a checkpoint file will be stored in `./checkpoints/imp-v1-3b`.
+
+### Finetuning on custom datasets
+You also can finetune Imp using your own custom dataset use `finetune_lora_custom.sh`. The custom dataset should be in the LLaVA-1.5 format.    
+
+``` shell
+bash scripts/finetune_lora_custom.sh
+```
 </details>
+
 
 
 ## Evaluation
@@ -109,11 +137,9 @@ We follow the evaluation of [LLaVA-v1.5](https://github.com/haotian-liu/LLaVA/tr
 
 Before preparing task-specific data, you should download [eval.zip](https://drive.google.com/file/d/1atZSBBrAX54yYpxtVVW33zFvcnaHeFPy/view?usp=sharing) and unzip it to `./playground/data/eval`. For more specific instructions, please refer to [LLaVA's Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluation.md). 
 
-It is supported to evaluate your own trained model checkpoints or our released `imp-v1-3b` model at [Huggingface Hub](https://huggingface.co/MILVLG/imp-v1-3b/). 
+It is supported to evaluate your reproduced model checkpoints or our released model. For more detailed evaluation scripts, please refer to [Evaluation.md](./docs/Evaluation.md).
 
-For more detailed evaluation scripts, please See [Evaluation.md](./docs/Evaluation.md).
-
-Using the provided model ckpts, you can reproduce the following results. Our `imp-v1-3b` model significantly outperforms existing MSLMs of similar model sizes, and is comparable with the strong LLaVA-v1.5-7b model. 
+Using our provided model, you can reproduce the following results. Our `imp-v1-3b` model significantly outperforms existing MSLMs of similar model sizes, and is comparable with the strong LLaVA-v1.5-7b model. 
 
 | Models | VQAv2 | GQA |VizWiz  | SQA(IMG) | TextVQA | POPE |  MME(P) | MMB  |MM-Vet|
 |:--------:|:----:|:----:|:-------------:|:--------:|:-----:|:----:|:-------:|:-------:|:-------:|
